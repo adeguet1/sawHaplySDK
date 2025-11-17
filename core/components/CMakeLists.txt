@@ -61,7 +61,7 @@ if (cisst_FOUND_AS_REQUIRED)
     message ("this needs to be implemented for Mac")
   endif (WIN32)
 
-  # if we found the actracsys SDK
+  # if we found the Haply SDK
   if (haply_sdk_FOUND)
     # create/configure file for find_package (sawHaplySDK)
     set (sawHaplySDK_INCLUDE_DIR
@@ -89,10 +89,9 @@ if (cisst_FOUND_AS_REQUIRED)
     set_target_properties (sawHaplySDK PROPERTIES
                            VERSION ${sawHaplySDK_VERSION}
                            FOLDER "sawHaplySDK")
-    target_link_libraries (sawHaplySDK
-                           ${haply_sdk_LIBRARY_DHD}
-                           ${haply_sdk_LIBRARY_DRD}
-                           usb-1.0)
+    # target_link_libraries (sawHaplySDK
+    #                       ${haply_sdk_LIBRARIES})
+	message ("-------- ${haply_sdk_LIBRARIES}")
     cisst_target_link_libraries (sawHaplySDK ${REQUIRED_CISST_LIBRARIES})
 
     # Install target for headers and library
