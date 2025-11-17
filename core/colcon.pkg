@@ -1,0 +1,4 @@
+{
+  "name": "sawHaplySDKCore",
+  "dependencies": ["cisst"]
+}

@@ -1,0 +1,4 @@
+{
+  "name": "haply",
+  "dependencies": ["cisst_ros_crtk", "sawHaplySDKCore"]
+}
