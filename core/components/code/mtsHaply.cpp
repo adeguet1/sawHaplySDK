@@ -361,11 +361,14 @@ void mtsHaplyDevice::GetRobotData(void)
     m_measured_cp.Position().Translation().Y() = response.position[1];
     m_measured_cp.Position().Translation().Z() = response.position[2];
 
+    vctRot3 tip_offset = vctRot3(vctAxAnRot3(vct3(1.0, 0.0, 0.0), cmnPI_2));
+
     Haply::HardwareAPI::Devices::Handle::VersegripStatusResponse
         data = m_handle->GetVersegripStatus();
     if (data.error_flag == 0) {
         vctQuatRot3 quat(data.quaternion[3], data.quaternion[0], data.quaternion[1], data.quaternion[2], VCT_NORMALIZE);
         m_measured_cp.Position().Rotation().From(quat);
+        m_measured_cp.Position().Rotation() = m_measured_cp.Position().Rotation() * tip_offset;
     }
     else
         {

@@ -48,13 +48,13 @@ if (cisst_FOUND_AS_REQUIRED)
       link_directories (${haply_sdk_DIR})
       set (haply_sdk_LIBRARIES Haply.HardwareAPI)
       # copy the binary provided for the Haply SDK in cisst/saw library directory
-      # find_library (haply_sdk_LIBRARY
-      #              NAMES Haply.HardwareAPI
-      #              PATHS ${haply_sdk_DIR})
+      find_library (haply_sdk_LIBRARY
+                    NAMES Haply.HardwareAPI
+                    PATHS ${haply_sdk_DIR})
 
-      # file (MAKE_DIRECTORY ${LIBRARY_OUTPUT_PATH})
-      # file (COPY ${haply_sdk_LIBRARY}
-      #      DESTINATION ${LIBRARY_OUTPUT_PATH})
+      file (MAKE_DIRECTORY ${LIBRARY_OUTPUT_PATH})
+      file (COPY ${haply_sdk_LIBRARY}
+            DESTINATION ${LIBRARY_OUTPUT_PATH})
     endif ()
   else (WIN32)
     # Everything else
@@ -89,9 +89,8 @@ if (cisst_FOUND_AS_REQUIRED)
     set_target_properties (sawHaplySDK PROPERTIES
                            VERSION ${sawHaplySDK_VERSION}
                            FOLDER "sawHaplySDK")
-    # target_link_libraries (sawHaplySDK
-    #                       ${haply_sdk_LIBRARIES})
-	message ("-------- ${haply_sdk_LIBRARIES}")
+    target_link_libraries (sawHaplySDK
+                           ${haply_sdk_LIBRARIES})
     cisst_target_link_libraries (sawHaplySDK ${REQUIRED_CISST_LIBRARIES})
 
     # Install target for headers and library
