@@ -24,6 +24,7 @@ http://www.cisst.org/cisst/license.txt.
 #include <sawHaplySDK/sawHaplySDKExport.h>  // always include last
 
 class mtsHaplyDevice;
+class mtsHaplySocket;
 
 class CISST_EXPORT mtsHaply: public mtsTaskContinuous
 {
@@ -53,22 +54,23 @@ class CISST_EXPORT mtsHaply: public mtsTaskContinuous
     enum ControlModeType {UNDEFINED, SERVO_CP, SERVO_CF, MOVE_CP};
 
  protected:
-
     void Init(void);
 
-    bool mConfigured;
+    bool m_configured;
 
     struct {
-        int Major;
-        int Minor;
-        int Release;
-        int Revision;
-    } mSDKVersion;
+        int m_major;
+        int m_minor;
+        int m_release;
+        int m_revision;
+    } m_sdk_version;
 
-    int mNumberOfDevices;
+    int m_number_of_devices;
 
     typedef std::list<mtsHaplyDevice *> DevicesType;
-    DevicesType mDevices;
+    DevicesType m_devices;
+
+    mtsHaplySocket m_websocket;
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsHaply);

@@ -30,11 +30,62 @@ http://www.cisst.org/cisst/license.txt.
 #include <cisstParameterTypes/prmStateJoint.h>
 #include <cisstParameterTypes/prmEventButton.h>
 
-#include <json/json.h> // in order to read config file
+#include <websocketpp/config/asio_no_tls_client.hpp>
+#include <websocketpp/client.hpp>
+#include <thread>
+#include <chrono>
 
-#include <HardwareAPI.h>
+class mtsHaplySocket {
+public:
+    typedef websocketpp::client<websocketpp::config::asio_client> ws_client_t;
+    ws_client_t m_ws_client;
+    websocketpp::connection_hdl m_ws_hdl;
+    std::string m_ws_uri;
+    bool m_ws_connected = false;
+    std::string m_ws_response;
 
-namespace API = Haply::HardwareAPI;
+    mtsHaplySocket() {}
+    ~mtsHaplySocket() {}
+
+    void Configure(const std::string & uri) {
+        m_ws_uri = uri;
+        m_ws_client.init_asio();
+        m_ws_client.set_message_handler([this](websocketpp::connection_hdl, ws_client_t::message_ptr msg) {
+            m_ws_response = msg->get_payload();
+        });
+        websocketpp::lib::error_code ec;
+        ws_client_t::connection_ptr con = m_ws_client.get_connection(m_ws_uri, ec);
+        if (ec) {
+            std::cout << "WebSocket configure error: " << ec.message() << std::endl;
+            return;
+        }
+        m_ws_client.connect(con);
+        m_ws_hdl = con->get_handle();
+        m_ws_connected = true;
+    }
+
+    void SendRequest(const std::string & request) {
+        if (m_ws_connected) {
+            websocketpp::lib::error_code ec;
+            m_ws_client.send(m_ws_hdl, request, websocketpp::frame::opcode::text, ec);
+            if (ec) {
+                std::cout << "WebSocket send error: " << ec.message() << std::endl;
+                return;
+            }
+            m_ws_client.poll();
+            if (!m_ws_response.empty()) {
+                std::cout << "WebSocket response: " << m_ws_response << std::endl;
+                m_ws_response.clear();
+            }
+        }
+    }
+
+    void Poll() {
+        if (m_ws_connected) {
+            m_ws_client.poll();
+        }
+    }
+};
 
 CMN_IMPLEMENT_SERVICES_DERIVED_ONEARG(mtsHaply, mtsTaskContinuous, mtsTaskContinuousConstructorArg);
 
@@ -73,12 +124,6 @@ protected:
     void hold(void);
     void free(void);
 
-    API::IO::SerialStream * m_device_stream = nullptr;
-    API::Devices::Inverse3 * m_device = nullptr;
-
-    API::IO::SerialStream * m_handle_stream = nullptr;
-    API::Devices::Handle * m_handle = nullptr;
-
     std::string m_device_id_string;
     std::string m_name;
     mtsStateTable * m_state_table;
@@ -113,7 +158,7 @@ mtsHaplyDevice::mtsHaplyDevice(const int deviceId,
                                mtsStateTable * stateTable,
                                mtsInterfaceProvided * interfaceProvided,
                                const mtsHaplyDevice::ButtonInterfaces & buttonInterfaces):
-    m_device(nullptr),
+    /* m_device(nullptr), */
     m_name(name),
     m_state_table(stateTable),
     m_interface(interfaceProvided)
@@ -206,58 +251,58 @@ void mtsHaplyDevice::Startup(void)
     // return value is a vector of string representing the serial COM ports that
     // can be used to communicate with the device.
     {
-        auto list = API::Devices::DeviceDetection::DetectInverse3s();
-        for (const auto & port : list) {
-            m_interface->SendStatus(m_name + ": found device on port " + port);
-        }
-        
-        if (list.empty()) {
-            m_interface->SendError(m_name + ":no inverse3 detected");
-        }
-        
-        first_port = list[0];
-        fprintf(stdout, "using the first inverse3 found: %s\n",
-                first_port.c_str());
+        // auto list = API::Devices::DeviceDetection::DetectInverse3s();
+        // for (const auto & port : list) {
+        //     m_interface->SendStatus(m_name + ": found device on port " + port);
+        // }
+        // 
+        // if (list.empty()) {
+        //     m_interface->SendError(m_name + ":no inverse3 detected");
+        // }
+        // 
+        // first_port = list[0];
+        // fprintf(stdout, "using the first inverse3 found: %s\n",
+        //         first_port.c_str());
     }
 
     // handle
     char* portName;
     
     std::string portNames[256];
-    std::vector<std::string> ports =
-        Haply::HardwareAPI::Devices::DeviceDetection::DetectHandles();
-    int portCount = static_cast<int>(ports.size());
-    for (int i = 0; i < portCount; i++) {
-        portNames[i] = ports[i];
-    }
-    if (portCount > 0) {
-        int index = portCount - 1;
-        portName = strdup(portNames[index].c_str());
-        std::cerr << "Using handle " << portName << std::endl;
-    } else {
-        std::cout << "No Handle found" << std::endl;
-    }
-    m_device_stream = new API::IO::SerialStream(first_port.c_str());
+    // std::vector<std::string> ports =
+    //     Haply::HardwareAPI::Devices::DeviceDetection::DetectHandles();
+    // int portCount = static_cast<int>(ports.size());
+    // for (int i = 0; i < portCount; i++) {
+    //     portNames[i] = ports[i];
+    // }
+    // if (portCount > 0) {
+    //     int index = portCount - 1;
+    //     portName = strdup(portNames[index].c_str());
+    //     std::cerr << "Using handle " << portName << std::endl;
+    // } else {
+    //     std::cout << "No Handle found" << std::endl;
+    // }
+    // m_device_stream = new API::IO::SerialStream(first_port.c_str());
 
     // Using the `API::IO::SerialStream` object we can initialize the
     // Inverse3 object which will encapsulates all the logic needed to
     // interact with an Inverse3 device.
-    m_device = new API::Devices::Inverse3(m_device_stream);
+    // m_device = new API::Devices::Inverse3(m_device_stream);
 
     // To start using the device, we first need to wake it up using the
     // `DeviceWakeup` function. Once awake, the LED colour on the device
     // should change to indicate that it's ready to receive commands. The
     // method returns a struct of type `Inverse3::DeviceInfoResponse` which
     // contains the device's general information.
-    auto info = m_device->DeviceWakeup();
-    std::fprintf(stdout,
-                 "info: id=%u, model=%u, version={hardware:%u, firmware:%u}\n",
-                 info.device_id, info.device_model_number,
-                 info.hardware_version, info.firmware_version);
+    // auto info = m_device->DeviceWakeup();
+    // std::fprintf(stdout,
+    //              "info: id=%u, model=%u, version={hardware:%u, firmware:%u}\n",
+    //              info.device_id, info.device_model_number,
+    //              info.hardware_version, info.firmware_version);
 
 
-    m_handle_stream = new API::IO::SerialStream(portName);
-    m_handle = new API::Devices::Handle(m_handle_stream);
+    // m_handle_stream = new API::IO::SerialStream(portName);
+    // m_handle = new API::Devices::Handle(m_handle_stream);
 
     m_interface->SendStatus(m_name + ": properly initialized");
     m_operating_state.IsHomed() = true;
@@ -274,11 +319,9 @@ void mtsHaplyDevice::Startup(void)
 void mtsHaplyDevice::Run(void)
 {
     m_state_table->Start();
-
     // process mts commands
     m_interface->ProcessMailBoxes();
-
-    // get robot data
+    // ws_client.poll(); // Non-blocking event loop step
     GetRobotData();
 
     // control mode
@@ -354,27 +397,24 @@ void mtsHaplyDevice::GetButtonNames(std::list<std::string> & result) const
 
 void mtsHaplyDevice::GetRobotData(void)
 {
-    Haply::HardwareAPI::Devices::Inverse3::EndEffectorStateResponse
-        response = m_device->GetEndEffectorPosition(false);
-
-    m_measured_cp.Position().Translation().X() = response.position[0];
-    m_measured_cp.Position().Translation().Y() = response.position[1];
-    m_measured_cp.Position().Translation().Z() = response.position[2];
-
-    vctRot3 tip_offset = vctRot3(vctAxAnRot3(vct3(1.0, 0.0, 0.0), cmnPI_2));
-
-    Haply::HardwareAPI::Devices::Handle::VersegripStatusResponse
-        data = m_handle->GetVersegripStatus();
-    if (data.error_flag == 0) {
-        vctQuatRot3 quat(data.quaternion[3], data.quaternion[0], data.quaternion[1], data.quaternion[2], VCT_NORMALIZE);
-        m_measured_cp.Position().Rotation().From(quat);
-        m_measured_cp.Position().Rotation() = m_measured_cp.Position().Rotation() * tip_offset;
-    }
-    else
-        {
-            std::printf("received error flag: %d\n", data.error_flag);
+    // Send request and poll for response using WebSocket++
+    if (ws_connected) {
+        std::string request = "robot_data_request";
+        websocketpp::lib::error_code ec;
+        ws_client.send(ws_hdl, request, websocketpp::frame::opcode::text, ec);
+        if (ec) {
+            std::cout << "WebSocket send error: " << ec.message() << std::endl;
+            return;
         }
-    
+        // Poll for events (non-blocking, single step)
+        ws_client.poll();
+        // Optionally, check ws_response for new data
+        if (!ws_response.empty()) {
+            std::cout << "WebSocket response: " << ws_response << std::endl;
+            ws_response.clear();
+        }
+    }
+
     /*
     double rotation[3][3];
     // position
